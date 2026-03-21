@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # ========== Constants ==========
-FIXED_AFFILIATE_ID = "17323090153"
+FIXED_AFFILIATE_ID = "555555555"
 FIXED_SUB_ID = "addlivetag-ductoan"
 
 # ============ Helper Functions ============
