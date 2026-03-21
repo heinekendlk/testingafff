@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 import re
+import aiohttp
 
 app = FastAPI(title="Shopee Affiliate Link Generator")
 
@@ -23,13 +24,6 @@ FIXED_SUB_ID = "addlivetag-ductoan"
 def validate_shopee_url(url: str) -> bool:
     """
     Kiểm tra URL có phải từ Shopee không
-    
-    Valid formats:
-    - https://s.shopee.vn/...
-    - https://shopee.vn/product/shop_id/product_id
-    - https://shopee.vn/Tên-Sản-Phẩm-i.shop_id.product_id
-    - https://shopee.com.my/...
-    - https://shopee.sg/...
     """
     shopee_domains = [
         r'shopee\.vn',
@@ -39,11 +33,65 @@ def validate_shopee_url(url: str) -> bool:
         r'shopee\.com\.my',
         r'shopee\.co\.th',
         r'shopee\.tw',
-        r'shopee\.id'
+        r'shopee\.id',
+        r's\.shopee\.vn'  # Short link
     ]
     
     pattern = '|'.join(shopee_domains)
     return bool(re.search(pattern, url))
+
+
+def is_short_link(url: str) -> bool:
+    """
+    Kiểm tra có phải short link (s.shopee.vn) không
+    """
+    return 's.shopee.vn' in url or 's.shopee' in url
+
+
+async def extract_origin_link_from_short(url: str) -> str:
+    """
+    Giải mã short link để lấy origin_link
+    
+    VD: https://s.shopee.vn/3B2qsVvyNN
+        → https://shopee.vn/product/123/456
+    """
+    try:
+        # Cách 1: Nếu là link redirect an_redir, extract origin_link
+        if 'an_redir' in url and 'origin_link=' in url:
+            match = re.search(r'origin_link=([^&]+)', url)
+            if match:
+                encoded_link = match.group(1)
+                origin_link = unquote(encoded_link)
+                return origin_link
+        
+        # Cách 2: Nếu là short link, follow redirect
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(
+                    url,
+                    allow_redirects=True,
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    final_url = str(response.url)
+                    
+                    # Lấy origin_link từ URL cuối cùng
+                    if 'origin_link=' in final_url:
+                        match = re.search(r'origin_link=([^&]+)', final_url)
+                        if match:
+                            return unquote(match.group(1))
+                    
+                    # Hoặc return URL cuối cùng nếu là link shopee thường
+                    if validate_shopee_url(final_url):
+                        return final_url
+                        
+            except Exception as e:
+                print(f"Error following redirect: {e}")
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error extracting origin link: {e}")
+        return None
 
 
 def extract_product_id(url: str) -> tuple:
@@ -70,13 +118,7 @@ def extract_product_id(url: str) -> tuple:
 def create_affiliate_link(origin_link: str) -> str:
     """
     Tạo Shopee affiliate link với redirect
-    
-    Format:
-    https://s.shopee.vn/an_redir?origin_link={encoded_link}&affiliate_id=17323090153&sub_id=addlivetag-ductoan
-    
-    Affiliate ID và Sub ID đã được cố định
     """
-    # Encode origin_link
     encoded_link = quote(origin_link, safe='')
     
     affiliate_link = (
@@ -92,18 +134,24 @@ def create_affiliate_link(origin_link: str) -> str:
 # ============ API Endpoints ============
 
 @app.get("/create-link")
-async def create_link(origin_link: str = Query(..., description="Link Shopee từ form")):
+async def create_link(origin_link: str = Query(..., description="Link Shopee hoặc short link")):
     """
-    Tạo affiliate link từ Shopee URL
+    Tạo affiliate link từ Shopee URL hoặc short link
+    
+    Nếu input là short link (s.shopee.vn), sẽ:
+    1. Giải mã để lấy link gốc
+    2. Tạo lại link affiliate mới
     
     Parameters:
-    - origin_link: Link sản phẩm Shopee gốc
+    - origin_link: Link Shopee gốc hoặc short link
     
     Response:
     {
         "success": true,
         "message": "Đã tạo link thành công",
-        "affiliateLink": "https://s.shopee.vn/an_redir?origin_link=...&affiliate_id=17323090153&sub_id=addlivetag-ductoan",
+        "affiliateLink": "https://s.shopee.vn/an_redir?...",
+        "originLink": "https://shopee.vn/product/123/456",
+        "decodedFromShortLink": true,
         "affiliateId": "17323090153",
         "subId": "addlivetag-ductoan",
         "productId": "67890"
@@ -123,7 +171,32 @@ async def create_link(origin_link: str = Query(..., description="Link Shopee t�
     if not validate_shopee_url(origin_link):
         raise HTTPException(
             status_code=400, 
-            detail="URL không phải từ Shopee. Vui lòng nhập link Shopee hợp lệ"
+            detail="URL không phải từ Shopee. Vui lòng nhập link Shopee hoặc short link hợp lệ"
+        )
+    
+    decoded_from_short_link = False
+    
+    # ========== Nếu là short link, giải mã ==========
+    if is_short_link(origin_link):
+        decoded_from_short_link = True
+        print(f"🔍 Giải mã short link: {origin_link}")
+        
+        decoded_link = await extract_origin_link_from_short(origin_link)
+        
+        if not decoded_link:
+            raise HTTPException(
+                status_code=400, 
+                detail="Không thể giải mã short link. Vui lòng kiểm tra lại link"
+            )
+        
+        origin_link = decoded_link
+        print(f"✅ Link gốc: {origin_link}")
+    
+    # ========== Validate link gốc ==========
+    if not validate_shopee_url(origin_link):
+        raise HTTPException(
+            status_code=400, 
+            detail="Link gốc không hợp lệ. Vui lòng kiểm tra lại"
         )
     
     # Extract product info
@@ -134,18 +207,19 @@ async def create_link(origin_link: str = Query(..., description="Link Shopee t�
             detail="Không thể lấy product ID từ URL. Vui lòng kiểm tra lại link"
         )
     
-    # ========== Tạo Link ==========
+    # ========== Tạo Link Mới ==========
     affiliate_link = create_affiliate_link(origin_link)
     
     return {
         "success": True,
-        "message": "Đã tạo link thành công",
+        "message": "Đã tạo link thành công" + (" (giải mã từ short link)" if decoded_from_short_link else ""),
         "affiliateLink": affiliate_link,
+        "originLink": origin_link,
+        "decodedFromShortLink": decoded_from_short_link,
         "affiliateId": FIXED_AFFILIATE_ID,
         "subId": FIXED_SUB_ID,
         "productId": product_id,
-        "shopId": shop_id,
-        "originLink": origin_link
+        "shopId": shop_id
     }
 
 
@@ -153,14 +227,6 @@ async def create_link(origin_link: str = Query(..., description="Link Shopee t�
 async def validate_url(origin_link: str = Query(...)):
     """
     Kiểm tra URL Shopee có hợp lệ không
-    
-    Response:
-    {
-        "valid": true,
-        "productId": "67890",
-        "shopId": "12345",
-        "message": "URL hợp lệ"
-    }
     """
     
     origin_link = origin_link.strip()
@@ -170,6 +236,21 @@ async def validate_url(origin_link: str = Query(...)):
             status_code=400, 
             detail="URL không phải từ Shopee"
         )
+    
+    decoded_from_short_link = False
+    
+    # Nếu là short link, giải mã
+    if is_short_link(origin_link):
+        decoded_from_short_link = True
+        decoded_link = await extract_origin_link_from_short(origin_link)
+        
+        if not decoded_link:
+            raise HTTPException(
+                status_code=400, 
+                detail="Không thể giải mã short link"
+            )
+        
+        origin_link = decoded_link
     
     shop_id, product_id = extract_product_id(origin_link)
     
@@ -183,8 +264,9 @@ async def validate_url(origin_link: str = Query(...)):
         "valid": True,
         "productId": product_id,
         "shopId": shop_id,
-        "message": "URL hợp lệ",
-        "url": origin_link
+        "originLink": origin_link,
+        "decodedFromShortLink": decoded_from_short_link,
+        "message": "URL hợp lệ"
     }
 
 
@@ -194,9 +276,10 @@ async def health_check():
     return {
         "status": "ok",
         "service": "Shopee Affiliate Link Generator",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "affiliateId": FIXED_AFFILIATE_ID,
-        "subId": FIXED_SUB_ID
+        "subId": FIXED_SUB_ID,
+        "features": ["decode_short_link", "create_affiliate_link"]
     }
 
 
