@@ -25,6 +25,7 @@ def validate_shopee_url(url: str) -> bool:
     Kiểm tra URL có phải từ Shopee không
     
     Valid formats:
+    - https://s.shopee.vn/...
     - https://shopee.vn/product/shop_id/product_id
     - https://shopee.vn/Tên-Sản-Phẩm-i.shop_id.product_id
     - https://shopee.com.my/...
