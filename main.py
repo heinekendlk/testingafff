@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, parse_qs, unquote
 import re
 import aiohttp
 import logging
@@ -46,15 +46,7 @@ logger.info("=" * 80)
 # ========== HELPER FUNCTIONS ==========
 
 def is_shopee_url(url: str) -> bool:
-    """
-    Check if URL is from Shopee
-    
-    Args:
-        url: URL to check
-    
-    Returns:
-        bool: True if URL is from Shopee, False otherwise
-    """
+    """Check if URL is from Shopee"""
     if not url:
         return False
     
@@ -67,37 +59,56 @@ def is_shopee_url(url: str) -> bool:
 
 
 def is_short_link(url: str) -> bool:
-    """
-    Check if URL is a Shopee short link
-    
-    Args:
-        url: URL to check
-    
-    Returns:
-        bool: True if URL is short link, False otherwise
-    """
-    # Short link starts with s.shopee and doesn't contain an_redir parameter
+    """Check if URL is a Shopee short link"""
     return 's.shopee' in url and 'an_redir' not in url
 
 
-def clean_url(url: str) -> str:
+def is_affiliate_link(url: str) -> bool:
     """
-    Remove query parameters from URL to keep only the base path
+    Check if URL is an affiliate link (an_redir link)
     
-    Examples:
-        https://shopee.vn/product/123/456?sp_atk=xxx&xptid=yyy
-        -> https://shopee.vn/product/123/456
+    Example:
+        https://s.shopee.vn/an_redir?origin_link=...&affiliate_id=...
+    """
+    return 's.shopee' in url and 'an_redir' in url
+
+
+def extract_origin_from_affiliate(url: str) -> str:
+    """
+    Extract origin_link parameter from affiliate link
     
-    Args:
-        url: URL to clean
+    Example:
+        Input: https://s.shopee.vn/an_redir?origin_link=https%3A%2F%2Fshopee.vn%2Fproduct%2F123%2F456&affiliate_id=123
+        Output: https://shopee.vn/product/123/456
     
     Returns:
-        str: Cleaned URL without query parameters
+        str: Origin link if found, None otherwise
     """
     try:
+        logger.info(f"🔎 Extracting origin_link from affiliate URL")
+        
         parsed = urlparse(url)
-        # Reconstruct URL with only scheme, netloc, and path
-        # Remove query parameters and fragments
+        query_params = parse_qs(parsed.query)
+        
+        if 'origin_link' in query_params:
+            origin_link = query_params['origin_link'][0]
+            # URL decode the origin_link
+            origin_link = unquote(origin_link)
+            logger.info(f"✅ Extracted origin_link: {origin_link}")
+            return origin_link
+        
+        logger.warning(f"⚠️ No origin_link parameter found in URL")
+        return None
+    
+    except Exception as e:
+        logger.error(f"❌ Error extracting origin_link: {e}")
+        return None
+
+
+def clean_url(url: str) -> str:
+    """Remove query parameters from URL"""
+    try:
+        parsed = urlparse(url)
         clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         
         if url != clean:
@@ -109,26 +120,11 @@ def clean_url(url: str) -> str:
     
     except Exception as e:
         logger.warning(f"⚠️ Could not clean URL: {e}")
-        logger.warning(f"   Returning original URL")
         return url
 
 
 async def decode_short_link(short_url: str) -> str:
-    """
-    Decode Shopee short link by following redirects
-    
-    Flow:
-        1. Send GET request to short link
-        2. Follow redirects (allow_redirects=True)
-        3. Get final URL after all redirects
-        4. Clean the URL to remove query parameters
-    
-    Args:
-        short_url: Shopee short link (e.g., https://s.shopee.vn/3B2qsVvyNN)
-    
-    Returns:
-        str: Origin link if successful, None if error
-    """
+    """Decode Shopee short link by following redirects"""
     try:
         logger.info(f"🔍 Decoding short link")
         logger.info(f"   Input: {short_url}")
@@ -148,7 +144,6 @@ async def decode_short_link(short_url: str) -> str:
                 final_url = str(response.url)
                 logger.info(f"   Decoded (raw): {final_url}")
                 
-                # Clean the URL - remove query parameters
                 cleaned_url = clean_url(final_url)
                 
                 logger.info(f"   ✅ Decoded (cleaned): {cleaned_url}")
@@ -166,22 +161,7 @@ async def decode_short_link(short_url: str) -> str:
 
 
 def create_affiliate_link(origin_url: str) -> str:
-    """
-    Create Shopee affiliate link from origin URL
-    
-    Formula:
-        https://s.shopee.vn/an_redir?
-            origin_link=<encoded_origin_url>
-            &affiliate_id=<your_id>
-            &sub_id=<your_sub_id>
-            &share_channel_code=<channel>
-    
-    Args:
-        origin_url: Origin product URL
-    
-    Returns:
-        str: Affiliate link ready to share
-    """
+    """Create Shopee affiliate link from origin URL"""
     encoded = quote(origin_url, safe='')
     
     affiliate_link = (
@@ -203,12 +183,7 @@ def create_affiliate_link(origin_url: str) -> str:
 
 @app.get("/")
 async def root():
-    """
-    Root endpoint - API information
-    
-    Returns:
-        dict: API information and available endpoints
-    """
+    """Root endpoint - API information"""
     logger.info("📍 GET / - Root endpoint")
     
     return JSONResponse(
@@ -229,12 +204,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """
-    Health check endpoint
-    
-    Returns:
-        dict: Service status information
-    """
+    """Health check endpoint"""
     logger.info("📍 GET /health - Health check")
     
     return JSONResponse(
@@ -250,29 +220,14 @@ async def health():
 
 
 @app.post("/create-link")
-async def create_link(origin_link: str = Query(..., description="Shopee URL or short link")):
+async def create_link(origin_link: str = Query(..., description="Shopee URL, short link, or affiliate link")):
     """
-    Main endpoint - Create affiliate link from Shopee URL
+    Main endpoint - Create affiliate link
     
-    Process Flow:
-        1. Validate input (not empty, is Shopee URL)
-        2. Check if it's a short link
-           - If YES: Decode it (follow redirects)
-           - If NO: Use it directly
-        3. Clean URL (remove query parameters)
-        4. Create affiliate link
-        5. Return response with all details
-    
-    Query Parameters:
-        origin_link (str): Shopee URL or short link
-    
-    Returns:
-        dict: Response with affiliate link and metadata
-    
-    Status Codes:
-        200: Success - affiliate link created
-        400: Client error - invalid input
-        500: Server error - internal error
+    Supports:
+        1. Shopee product URL: https://shopee.vn/product/123/456
+        2. Shopee short link: https://s.shopee.vn/3B2qsVvyNN
+        3. Affiliate link (regenerate): https://s.shopee.vn/an_redir?origin_link=...
     """
     
     logger.info("=" * 80)
@@ -296,7 +251,7 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL or s
             logger.warning(f"❌ Not a Shopee URL")
             return JSONResponse(
                 status_code=400,
-                content={"detail": "Link phải từ Shopee (shopee.vn, shopee.ph, etc.)"}
+                content={"detail": "Link phải từ Shopee"}
             )
         
         logger.info(f"✅ Valid Shopee URL detected")
@@ -306,8 +261,25 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL or s
         final_origin_link = origin_link
         input_link = origin_link
         
-        # ========== STEP 4: Check and Decode Short Link ==========
-        if is_short_link(origin_link):
+        # ========== STEP 4: Check if it's an AFFILIATE LINK (Re-generate) ==========
+        if is_affiliate_link(origin_link):
+            logger.info(f"🔄 AFFILIATE LINK detected - Extracting origin_link...")
+            
+            extracted_origin = extract_origin_from_affiliate(origin_link)
+            
+            if extracted_origin and is_shopee_url(extracted_origin):
+                logger.info(f"✅ Successfully extracted origin from affiliate link")
+                final_origin_link = clean_url(extracted_origin)
+                decoded_from_short = False  # Not from short link, from affiliate extraction
+            else:
+                logger.error(f"❌ Could not extract valid origin from affiliate link")
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "Không thể trích xuất link gốc từ affiliate link"}
+                )
+        
+        # ========== STEP 5: Check and Decode SHORT LINK ==========
+        elif is_short_link(origin_link):
             logger.info(f"🔄 Short link detected - Starting decode process...")
             decoded_from_short = True
             
@@ -320,7 +292,6 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL or s
                     content={"detail": "Không thể giải mã short link - vui lòng thử lại"}
                 )
             
-            # Validate decoded URL
             if not is_shopee_url(decoded):
                 logger.error(f"❌ Decoded URL is not a valid Shopee URL")
                 return JSONResponse(
@@ -331,16 +302,17 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL or s
             final_origin_link = decoded
             logger.info(f"✅ Short link decoded successfully")
         
+        # ========== STEP 6: Regular SHOPEE PRODUCT LINK ==========
         else:
-            logger.info(f"📌 Regular link detected - Cleaning query parameters...")
+            logger.info(f"📌 Regular Shopee product link - Cleaning query parameters...")
             final_origin_link = clean_url(origin_link)
         
-        # ========== STEP 5: Create Affiliate Link ==========
+        # ========== STEP 7: Create Affiliate Link ==========
         logger.info(f"🔗 Creating affiliate link from: {final_origin_link}")
         affiliate_link = create_affiliate_link(final_origin_link)
         logger.info(f"✅ Affiliate link created successfully")
         
-        # ========== STEP 6: Prepare Response ==========
+        # ========== STEP 8: Prepare Response ==========
         response_data = {
             "success": True,
             "message": "Tạo link thành công" + (
@@ -379,18 +351,7 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL or s
 # ========== CORS Preflight Handler ==========
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
-    """
-    Handle CORS preflight requests
-    
-    CORS preflight is sent by browsers before actual requests
-    to check if the server allows cross-origin requests.
-    
-    Args:
-        full_path: The requested path
-    
-    Returns:
-        dict: OK response with CORS headers
-    """
+    """Handle CORS preflight requests"""
     logger.info(f"📍 OPTIONS /{full_path} - CORS preflight")
     
     return JSONResponse(
@@ -419,7 +380,6 @@ if __name__ == "__main__":
     import asyncio
     import uvicorn
     
-    # Import asyncio for Windows compatibility
     if hasattr(asyncio, 'WindowsSelectorEventLoopPolicy'):
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     
