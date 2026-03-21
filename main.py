@@ -152,7 +152,7 @@ def create_affiliate_link(origin_link: str) -> str:
 
 # ========== API Endpoints ==========
 
-@app.post("/create-link", response_class=JSONResponse)
+@app.get("/create-link", response_class=JSONResponse)
 async def create_link(origin_link: str = Query(...)):
     """Tạo affiliate link từ Shopee URL hoặc short link"""
     
