@@ -507,7 +507,9 @@
 
     <script>
         // ========== Config ==========
-        const API_URL = https://shopee-affiliate-api-ymtu.onrender.com;
+        const API_URL = "https://shopee-affiliate-api-ymtu.onrender.com";  // ✅ Thêm dấu ngoặc kép
+
+        console.log('🌐 API_URL:', API_URL);
 
         // ========== Toast Notification ==========
         function showToast(message, type = 'success') {
