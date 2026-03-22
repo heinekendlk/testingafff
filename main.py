@@ -60,7 +60,7 @@ def is_shopee_url(url: str) -> bool:
 
 def is_short_link(url: str) -> bool:
     """Check if URL is a Shopee short link"""
-    return 's.shopee' in url and 'an_redir' not in url
+    return ('s.shopee' in url or 'vn.shp.ee' in url) and 'an_redir' not in url
 
 
 def is_affiliate_link(url: str) -> bool:
