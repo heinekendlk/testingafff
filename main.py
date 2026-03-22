@@ -33,12 +33,14 @@ app.add_middleware(
 
 # ========== CONSTANTS ==========
 AFFILIATE_ID = "173276543567"
+AFFILIATE_ID_2 = "THEM_ID_MOI_VAO_DAY"
 SUB_ID = "addlivetag-ductoan"
 SHARE_CHANNEL = "4"
 
 logger.info("=" * 80)
 logger.info("🚀 Shopee Affiliate Link Generator API Started")
 logger.info(f"📋 Affiliate ID: {AFFILIATE_ID}")
+logger.info(f"📋 Affiliate ID 2: {AFFILIATE_ID_2}")
 logger.info(f"📋 Sub ID: {SUB_ID}")
 logger.info(f"📋 Share Channel: {SHARE_CHANNEL}")
 logger.info("=" * 80)
@@ -160,19 +162,19 @@ async def decode_short_link(short_url: str) -> str:
         return None
 
 
-def create_affiliate_link(origin_url: str) -> str:
+def create_affiliate_link(origin_url: str, affiliate_id: str) -> str:
     """Create Shopee affiliate link from origin URL"""
     encoded = quote(origin_url, safe='')
     
     affiliate_link = (
         f"https://s.shopee.vn/an_redir?"
         f"origin_link={encoded}"
-        f"&affiliate_id={AFFILIATE_ID}"
+        f"&affiliate_id={affiliate_id}"
         f"&sub_id={SUB_ID}"
         f"&share_channel_code={SHARE_CHANNEL}"
     )
     
-    logger.info(f"🔗 Created affiliate link")
+    logger.info(f"🔗 Created affiliate link for ID: {affiliate_id}")
     logger.info(f"   Origin: {origin_url}")
     logger.info(f"   Affiliate: {affiliate_link[:100]}...")
     
@@ -214,6 +216,7 @@ async def health():
             "version": "1.0.0",
             "service": "Shopee Affiliate Link Generator",
             "affiliateId": AFFILIATE_ID,
+            "affiliateId2": AFFILIATE_ID_2,
             "uptime": "running"
         }
     )
@@ -228,6 +231,7 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL, sho
         1. Shopee product URL: https://shopee.vn/product/123/456
         2. Shopee short link: https://s.shopee.vn/3B2qsVvyNN
         3. Affiliate link (regenerate): https://s.shopee.vn/an_redir?origin_link=...
+        4. Shopee App link: https://vn.shp.ee/96iRuXxc
     """
     
     logger.info("=" * 80)
@@ -309,8 +313,9 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL, sho
         
         # ========== STEP 7: Create Affiliate Link ==========
         logger.info(f"🔗 Creating affiliate link from: {final_origin_link}")
-        affiliate_link = create_affiliate_link(final_origin_link)
-        logger.info(f"✅ Affiliate link created successfully")
+        affiliate_link_1 = create_affiliate_link(final_origin_link, AFFILIATE_ID)
+        affiliate_link_2 = create_affiliate_link(final_origin_link, AFFILIATE_ID_2)
+        logger.info(f"✅ Affiliate links created successfully")
         
         # ========== STEP 8: Prepare Response ==========
         response_data = {
@@ -318,11 +323,13 @@ async def create_link(origin_link: str = Query(..., description="Shopee URL, sho
             "message": "Tạo link thành công" + (
                 " (giải mã từ short link)" if decoded_from_short else ""
             ),
-            "affiliateLink": affiliate_link,
+            "affiliateLink": affiliate_link_1,
+            "affiliateLink2": affiliate_link_2,
             "originLink": final_origin_link,
             "inputLink": input_link,
             "decodedFromShort": decoded_from_short,
             "affiliateId": AFFILIATE_ID,
+            "affiliateId2": AFFILIATE_ID_2,
             "subId": SUB_ID,
             "shareChannelCode": SHARE_CHANNEL
         }
