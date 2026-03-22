@@ -52,7 +52,7 @@ def is_shopee_url(url: str) -> bool:
     
     shopee_domains = [
         'shopee.vn', 'shopee.ph', 'shopee.sg', 'shopee.my',
-        'shopee.tw', 'shopee.id', 'shopee.th', 's.shopee'
+        'shopee.tw', 'shopee.id', 'shopee.th', 's.shopee, vn.shp.ee'
     ]
     
     return any(domain in url for domain in shopee_domains)
