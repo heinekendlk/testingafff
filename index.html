@@ -603,28 +603,47 @@
                 }
 
                 // ========== DISPLAY RESULTS ==========
-                // Hiển thị chỉ Link Affiliate Mới - Ẩn các thành phần khác
+                // Hiển thị Link Affiliate 1
                 let html = `
                     <div class="result-box">
                         <div class="result-title">
                             <i class="fas fa-check-circle" style="color: var(--success);"></i>
-                            Link Affiliate Mới
+                            Link Affiliate 1 (${data.affiliateId})
                         </div>
                         <p style="font-size: 0.85rem; color: #666; margin: 0.75rem 0 0.5rem 0;">
-                            <strong style="color: var(--primary);">🔗 Link của bạn:</strong>
+                            <strong style="color: var(--primary);">🔗 Link:</strong>
                         </p>
                         <div class="result-content">${data.affiliateLink}</div>
                         <button type="button" class="copy-btn" onclick="copyToClipboard('${data.affiliateLink}')">
-                            <i class="fas fa-copy"></i> Copy Link
+                            <i class="fas fa-copy"></i> Copy Link 1
                         </button>
                     </div>
                 `;
+
+                // Hiển thị Link Affiliate 2 (nếu có)
+                if (data.affiliateLink2) {
+                    html += `
+                        <div class="result-box">
+                            <div class="result-title">
+                                <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                                Link Affiliate 2 (${data.affiliateId2})
+                            </div>
+                            <p style="font-size: 0.85rem; color: #666; margin: 0.75rem 0 0.5rem 0;">
+                                <strong style="color: var(--primary);">🔗 Link:</strong>
+                            </p>
+                            <div class="result-content">${data.affiliateLink2}</div>
+                            <button type="button" class="copy-btn" onclick="copyToClipboard('${data.affiliateLink2}')">
+                                <i class="fas fa-copy"></i> Copy Link 2
+                            </button>
+                        </div>
+                    `;
+                }
 
                 document.getElementById('resultsContainer').innerHTML = html;
                 document.getElementById('emptyState').style.display = 'none';
                 document.getElementById('resultsSection').classList.add('show');
 
-                // Update action buttons
+                // Update action buttons (Mặc định dùng Link 1)
                 document.getElementById('buyBtn').href = data.affiliateLink;
                 document.getElementById('shareBtn').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(data.affiliateLink)}`;
 
@@ -653,5 +672,4 @@
         console.log('✅ Script loaded successfully');
     </script>
 </body>
-
 </html>
