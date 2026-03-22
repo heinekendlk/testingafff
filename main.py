@@ -32,9 +32,9 @@ app.add_middleware(
 )
 
 # ========== CONSTANTS ==========
-AFFILIATE_ID = "173276543567"
-AFFILIATE_ID_2 = "THEM_ID_MOI_VAO_DAY"
-SUB_ID = "addlivetag-ductoan"
+AFFILIATE_ID = "17323090153"
+AFFILIATE_ID_2 = ""
+SUB_ID = "addlivetag-ductoan--"
 SHARE_CHANNEL = "4"
 
 logger.info("=" * 80)
