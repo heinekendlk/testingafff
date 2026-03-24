@@ -545,7 +545,19 @@
         <!-- Footer -->
         <div class="footer">
             <p>🛍️ <strong>TeamDucKien</strong> | Made with <i class="fas fa-heart" style="color: var(--danger);"></i></p>
-        <script type="text/javascript" src="https://platform-api.sharethis.com/js/sharethis.js" defer></script>
+        <script>
+            (function() {
+                // Kiểm tra thiết bị di động và iPad (bao gồm cả iPadOS 13+ ở chế độ Desktop)
+                var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                
+                if (!isMobile) {
+                    var script = document.createElement('script');
+                    script.src = "https://platform-api.sharethis.com/js/sharethis.js";
+                    script.defer = true;
+                    document.head.appendChild(script);
+                }
+            })();
+        </script>
         <!-- ShareThis BEGINS -->
 <div class="sharethis-share-buttons" data-type="sticky-share-buttons" data-alignment="right" data-labels="counts" data-show_total="true">
 <span data-network="facebook"></span>
