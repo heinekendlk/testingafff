@@ -509,9 +509,9 @@
 
     <script>
         // ========== CONFIG ==========
-        const API_URL = "https://shopee-link-smoky.vercel.app";
-
-        console.log('🌐 API_URL:', API_URL);
+        // URL đã được mã hóa Base64 để tránh lộ liễu trong source code
+        const _e = "aHR0cHM6Ly9zaG9wZWUtbGluay1zbW9reS52ZXJjZWwuYXBw";
+        const API_URL = atob(_e); // Giải mã tại runtime
 
         // ========== TOAST NOTIFICATION ==========
         function showToast(message, type = 'success') {
