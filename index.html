@@ -571,7 +571,7 @@
     <!-- iOS Install Prompt HTML -->
         <div id="iosInstallPrompt" class="ios-prompt">
             <span class="ios-close" onclick="closeIosPrompt()">&times;</span>
-            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem;">Cài đặt ứng dụng vào iPhone/iPad</p>
+            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem;">Thêm vào iPhone/iPad</p>
             <div style="display: flex; flex-direction: column; gap: 10px; align-items: center; font-size: 0.9rem;">
                 <div>
                     1. Nhấn vào nút <strong>Chia sẻ</strong> <i class="fas fa-arrow-up-from-bracket ios-icon-box"></i> bên dưới
@@ -791,7 +791,7 @@
             if (isIos && !isInStandaloneMode && !localStorage.getItem('iosPromptDismissed')) {
                 setTimeout(() => {
                     document.getElementById('iosInstallPrompt').style.display = 'block';
-                }, 2000); // Show after 2 seconds
+                }, 5000); // Show after 2 seconds
             }
         });
 
