@@ -395,8 +395,35 @@
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
+        
+        /* Custom Facebook Button Style */
+        .btn-facebook-post {
+            background-color: #1877F2; /* Facebook Blue */
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 5px 15px rgba(24, 119, 242, 0.3);
+            text-decoration: none;
+        }
 
-
+        .btn-facebook-post:hover {
+            background-color: #166FE5; /* Slightly darker blue on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(24, 119, 242, 0.4);
+            color: white;
+            text-decoration: none;
+        }
+        
         /* ========== Footer ========== */
         .footer {
             text-align: center;
