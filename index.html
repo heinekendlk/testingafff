@@ -823,10 +823,12 @@ src="https://www.facebook.com/tr?id=1665197221319756&ev=PageView&noscript=1"
                             Link 1: Voucher 22% độc quyền Facebook tối đa 500K
                         </div>
                         
-                        <div class="result-content">${data.affiliateLink}</div>
-                        <button type="button" class="copy-btn" onclick="copyToClipboard('${data.affiliateLink}')">
-                            <i class="fas fa-copy"></i> Copy Link 1
-                        </button>
+                        <div class="result-content">
+                            <span class="result-link-text">${data.affiliateLink}</span>
+                            <button type="button" class="copy-btn" onclick="copyToClipboard('${data.affiliateLink}')">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
                     </div>
                 `;
 
@@ -839,10 +841,12 @@ src="https://www.facebook.com/tr?id=1665197221319756&ev=PageView&noscript=1"
                                 Link 2: Voucher 20% tối đa 250K/50K toàn sàn
                             </div>
                             
-                            <div class="result-content">${data.affiliateLink2}</div>
-                            <button type="button" class="copy-btn" onclick="copyToClipboard('${data.affiliateLink2}')">
-                                <i class="fas fa-copy"></i> Copy Link 2
-                            </button>
+                            <div class="result-content">
+                                <span class="result-link-text">${data.affiliateLink2}</span>
+                                <button type="button" class="copy-btn" onclick="copyToClipboard('${data.affiliateLink2}')">
+                                    <i class="fas fa-copy"></i> Copy Link 2
+                                </button>
+                            </div>
                         </div>
                     `;
                 }
