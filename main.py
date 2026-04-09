@@ -50,7 +50,7 @@ app.add_middleware(
 )
 
 # ========== CONSTANTS ==========
-AFFILIATE_ID = "17323090153"
+AFFILIATE_ID = process.env.AFFILIATE_ID
 AFFILIATE_ID_2 = ""
 SUB_ID = "addlivetag-duckien--"
 SHARE_CHANNEL = "4"
