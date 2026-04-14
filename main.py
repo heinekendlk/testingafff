@@ -50,7 +50,7 @@ app.add_middleware(
 )
 
 # ========== CONSTANTS ==========
-AFFILIATE_ID = "17323090153"
+AFFILIATE_ID = "17323115671"
 AFFILIATE_ID_2 = ""
 SUB_ID = "dealsieutoc-duckien--"
 SHARE_CHANNEL = "4"
